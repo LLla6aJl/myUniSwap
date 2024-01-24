@@ -35,14 +35,13 @@ contract SimpleSwap {
     ) external returns (address pair) {
         (address tokenA, address tokenB) = token0 < token1 ? (token0, token1) : (token1, token0);
 
-        pair = nonfungiblePositionManager.createAndInitializePoolIfNecessary(
-            tokenA,
-            tokenB,
-            fee,
-            sqrtPriceX96
-        );
-
-        return pair;
+        return
+            nonfungiblePositionManager.createAndInitializePoolIfNecessary(
+                tokenA,
+                tokenB,
+                fee,
+                sqrtPriceX96
+            );
     }
 
     /// @notice Calls the mint function defined in periphery, mints the same amount of each token.
@@ -63,6 +62,10 @@ contract SimpleSwap {
         TransferHelper.safeApprove(token0, address(nonfungiblePositionManager), amount0);
         TransferHelper.safeApprove(token1, address(nonfungiblePositionManager), amount1);
 
+        //TransferPosition
+        TransferHelper.safeTransferFrom(token0, msg.sender, address(this), amount0);
+        TransferHelper.safeTransferFrom(token1, msg.sender, address(this), amount1);
+
         {
             INonfungiblePositionManager.MintParams memory params = INonfungiblePositionManager
                 .MintParams({
@@ -81,8 +84,12 @@ contract SimpleSwap {
 
             (tokenId, liquidity, amount0, amount1) = nonfungiblePositionManager.mint(params);
         }
-        // Create a deposit
-        _createDeposit(msg.sender, tokenId);
+        deposits[tokenId] = Deposit({
+            owner: msg.sender,
+            liquidity: liquidity,
+            token0: token0,
+            token1: token1
+        });
 
         {
             // Remove allowance and refund in both assets.
@@ -204,6 +211,31 @@ contract SimpleSwap {
         uint256 amountAdd0,
         uint256 amountAdd1
     ) external returns (uint256 amount0, uint256 amount1) {
+        TransferHelper.safeApprove(
+            deposits[tokenId].token0,
+            address(nonfungiblePositionManager),
+            amount0
+        );
+        TransferHelper.safeApprove(
+            deposits[tokenId].token1,
+            address(nonfungiblePositionManager),
+            amount1
+        );
+
+        //TransferPosition
+        TransferHelper.safeTransferFrom(
+            deposits[tokenId].token0,
+            msg.sender,
+            address(this),
+            amount0
+        );
+        TransferHelper.safeTransferFrom(
+            deposits[tokenId].token1,
+            msg.sender,
+            address(this),
+            amount1
+        );
+
         INonfungiblePositionManager.IncreaseLiquidityParams
             memory params = INonfungiblePositionManager.IncreaseLiquidityParams({
                 tokenId: tokenId,
