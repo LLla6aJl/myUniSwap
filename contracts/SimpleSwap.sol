@@ -21,6 +21,9 @@ contract SimpleSwap {
     mapping(uint256 => Deposit) public deposits;
     error OnlyOwner(address msgSender);
     error InsufficientLiquidity(uint128 liquidity);
+    event Minted(uint256 tokenId, uint128 liquidity, uint256 amount0, uint256 amount1);
+    event SwapInput(uint256 amountOut);
+    event Collect(uint256 amount0, uint256 amount1);
 
     constructor(INonfungiblePositionManager _iNonfungiblePositionManager, ISwapRouter _swapRouter) {
         nonfungiblePositionManager = _iNonfungiblePositionManager;
@@ -58,24 +61,28 @@ contract SimpleSwap {
         int24 minTick,
         int24 maxTick
     ) external returns (uint256 tokenId, uint128 liquidity, uint256 amount0, uint256 amount1) {
+        (address tokenA, address tokenB) = token0 < token1 ? (token0, token1) : (token1, token0);
+        (uint256 amountA, uint256 amountB) = token0 < token1
+            ? (amount0ToMint, amount1ToMint)
+            : (amount1ToMint, amount0ToMint);
         // Approve the position manager
-        TransferHelper.safeApprove(token0, address(nonfungiblePositionManager), amount0);
-        TransferHelper.safeApprove(token1, address(nonfungiblePositionManager), amount1);
+        TransferHelper.safeApprove(tokenA, address(nonfungiblePositionManager), amountA);
+        TransferHelper.safeApprove(tokenB, address(nonfungiblePositionManager), amountB);
 
         //TransferPosition
-        TransferHelper.safeTransferFrom(token0, msg.sender, address(this), amount0);
-        TransferHelper.safeTransferFrom(token1, msg.sender, address(this), amount1);
+        TransferHelper.safeTransferFrom(tokenA, msg.sender, address(this), amountA);
+        TransferHelper.safeTransferFrom(tokenB, msg.sender, address(this), amountB);
 
         {
             INonfungiblePositionManager.MintParams memory params = INonfungiblePositionManager
                 .MintParams({
-                    token0: token0,
-                    token1: token1,
+                    token0: tokenA,
+                    token1: tokenB,
                     fee: poolFee,
                     tickLower: minTick,
                     tickUpper: maxTick,
-                    amount0Desired: amount0ToMint,
-                    amount1Desired: amount1ToMint,
+                    amount0Desired: amountA,
+                    amount1Desired: amountB,
                     amount0Min: 0,
                     amount1Min: 0,
                     recipient: address(this),
@@ -87,52 +94,30 @@ contract SimpleSwap {
         deposits[tokenId] = Deposit({
             owner: msg.sender,
             liquidity: liquidity,
-            token0: token0,
-            token1: token1
+            token0: tokenA,
+            token1: tokenB
         });
+
+        emit Minted(tokenId, liquidity, amount0, amount1);
 
         {
             // Remove allowance and refund in both assets.
-            if (amount0 < amount0ToMint) {
-                TransferHelper.safeApprove(token0, address(nonfungiblePositionManager), 0);
-                uint256 refund0 = amount0ToMint - amount0;
-                TransferHelper.safeTransfer(token0, msg.sender, refund0);
+            if (amount0 < amountA) {
+                TransferHelper.safeApprove(tokenA, address(nonfungiblePositionManager), 0);
+                uint256 refund0 = amountA - amount0;
+                TransferHelper.safeTransfer(tokenA, msg.sender, refund0);
             }
 
-            if (amount1 < amount1ToMint) {
-                TransferHelper.safeApprove(token1, address(nonfungiblePositionManager), 0);
-                uint256 refund1 = amount1ToMint - amount1;
-                TransferHelper.safeTransfer(token1, msg.sender, refund1);
+            if (amount1 < amountB) {
+                TransferHelper.safeApprove(tokenB, address(nonfungiblePositionManager), 0);
+                uint256 refund1 = amountB - amount1;
+                TransferHelper.safeTransfer(tokenB, msg.sender, refund1);
             }
         }
     }
 
-    function _createDeposit(address owner, uint256 tokenId) internal {
-        (
-            ,
-            ,
-            address token0,
-            address token1,
-            ,
-            ,
-            ,
-            uint128 liquidity,
-            ,
-            ,
-            ,
-
-        ) = nonfungiblePositionManager.positions(tokenId);
-
-        // set the owner and data for position
-        // operator is msg.sender
-        {
-            deposits[tokenId] = Deposit({
-                owner: owner,
-                liquidity: liquidity,
-                token0: token0,
-                token1: token1
-            });
-        }
+    function getPositionOwner(uint256 tokenId) public view returns (address owner) {
+        return deposits[tokenId].owner;
     }
 
     /// @notice Collects the fees associated with provided liquidity
@@ -146,7 +131,6 @@ contract SimpleSwap {
         if (msg.sender != deposits[tokenId].owner) {
             revert OnlyOwner(msg.sender);
         }
-        nonfungiblePositionManager.safeTransferFrom(msg.sender, address(this), tokenId);
 
         // set amount0Max and amount1Max to uint256.max to collect all fees
         // alternatively can set recipient to msg.sender and avoid another transaction in `sendToOwner`
@@ -159,7 +143,7 @@ contract SimpleSwap {
             });
 
         (amount0, amount1) = nonfungiblePositionManager.collect(params);
-
+        emit Collect(amount0, amount1);
         // send collected feed back to owner
         _sendToOwner(tokenId, amount0, amount1);
     }
@@ -269,6 +253,7 @@ contract SimpleSwap {
 
         // Executes the swap.
         amountOut = swapRouter.exactInput(params);
+        emit SwapInput(amountOut);
     }
 
     function swapExactOutput(

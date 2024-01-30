@@ -13,7 +13,11 @@ import type {
   Signer,
   utils,
 } from "ethers";
-import type { FunctionFragment, Result } from "@ethersproject/abi";
+import type {
+  FunctionFragment,
+  Result,
+  EventFragment,
+} from "@ethersproject/abi";
 import type { Listener, Provider } from "@ethersproject/providers";
 import type {
   TypedEventFilter,
@@ -30,6 +34,7 @@ export interface SimpleSwapInterface extends utils.Interface {
     "decreaseLiquidity(uint256,uint128)": FunctionFragment;
     "deposits(uint256)": FunctionFragment;
     "getPair(address,address)": FunctionFragment;
+    "getPositionOwner(uint256)": FunctionFragment;
     "increaseLiquidity(uint256,uint256,uint256)": FunctionFragment;
     "mintNewPosition(address,address,uint24,uint256,uint256,int24,int24)": FunctionFragment;
     "nonfungiblePositionManager()": FunctionFragment;
@@ -45,6 +50,7 @@ export interface SimpleSwapInterface extends utils.Interface {
       | "decreaseLiquidity"
       | "deposits"
       | "getPair"
+      | "getPositionOwner"
       | "increaseLiquidity"
       | "mintNewPosition"
       | "nonfungiblePositionManager"
@@ -77,6 +83,10 @@ export interface SimpleSwapInterface extends utils.Interface {
   encodeFunctionData(
     functionFragment: "getPair",
     values: [PromiseOrValue<string>, PromiseOrValue<string>]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "getPositionOwner",
+    values: [PromiseOrValue<BigNumberish>]
   ): string;
   encodeFunctionData(
     functionFragment: "increaseLiquidity",
@@ -137,6 +147,10 @@ export interface SimpleSwapInterface extends utils.Interface {
   decodeFunctionResult(functionFragment: "deposits", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "getPair", data: BytesLike): Result;
   decodeFunctionResult(
+    functionFragment: "getPositionOwner",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
     functionFragment: "increaseLiquidity",
     data: BytesLike
   ): Result;
@@ -158,8 +172,47 @@ export interface SimpleSwapInterface extends utils.Interface {
   ): Result;
   decodeFunctionResult(functionFragment: "swapRouter", data: BytesLike): Result;
 
-  events: {};
+  events: {
+    "Collect(uint256,uint256)": EventFragment;
+    "Minted(uint256,uint128,uint256,uint256)": EventFragment;
+    "SwapInput(uint256)": EventFragment;
+  };
+
+  getEvent(nameOrSignatureOrTopic: "Collect"): EventFragment;
+  getEvent(nameOrSignatureOrTopic: "Minted"): EventFragment;
+  getEvent(nameOrSignatureOrTopic: "SwapInput"): EventFragment;
 }
+
+export interface CollectEventObject {
+  amount0: BigNumber;
+  amount1: BigNumber;
+}
+export type CollectEvent = TypedEvent<
+  [BigNumber, BigNumber],
+  CollectEventObject
+>;
+
+export type CollectEventFilter = TypedEventFilter<CollectEvent>;
+
+export interface MintedEventObject {
+  tokenId: BigNumber;
+  liquidity: BigNumber;
+  amount0: BigNumber;
+  amount1: BigNumber;
+}
+export type MintedEvent = TypedEvent<
+  [BigNumber, BigNumber, BigNumber, BigNumber],
+  MintedEventObject
+>;
+
+export type MintedEventFilter = TypedEventFilter<MintedEvent>;
+
+export interface SwapInputEventObject {
+  amountOut: BigNumber;
+}
+export type SwapInputEvent = TypedEvent<[BigNumber], SwapInputEventObject>;
+
+export type SwapInputEventFilter = TypedEventFilter<SwapInputEvent>;
 
 export interface SimpleSwap extends BaseContract {
   connect(signerOrProvider: Signer | Provider | string): this;
@@ -224,6 +277,11 @@ export interface SimpleSwap extends BaseContract {
       arg1: PromiseOrValue<string>,
       overrides?: CallOverrides
     ): Promise<[string]>;
+
+    getPositionOwner(
+      tokenId: PromiseOrValue<BigNumberish>,
+      overrides?: CallOverrides
+    ): Promise<[string] & { owner: string }>;
 
     increaseLiquidity(
       tokenId: PromiseOrValue<BigNumberish>,
@@ -298,6 +356,11 @@ export interface SimpleSwap extends BaseContract {
   getPair(
     arg0: PromiseOrValue<string>,
     arg1: PromiseOrValue<string>,
+    overrides?: CallOverrides
+  ): Promise<string>;
+
+  getPositionOwner(
+    tokenId: PromiseOrValue<BigNumberish>,
     overrides?: CallOverrides
   ): Promise<string>;
 
@@ -381,6 +444,11 @@ export interface SimpleSwap extends BaseContract {
       overrides?: CallOverrides
     ): Promise<string>;
 
+    getPositionOwner(
+      tokenId: PromiseOrValue<BigNumberish>,
+      overrides?: CallOverrides
+    ): Promise<string>;
+
     increaseLiquidity(
       tokenId: PromiseOrValue<BigNumberish>,
       amountAdd0: PromiseOrValue<BigNumberish>,
@@ -429,7 +497,29 @@ export interface SimpleSwap extends BaseContract {
     swapRouter(overrides?: CallOverrides): Promise<string>;
   };
 
-  filters: {};
+  filters: {
+    "Collect(uint256,uint256)"(
+      amount0?: null,
+      amount1?: null
+    ): CollectEventFilter;
+    Collect(amount0?: null, amount1?: null): CollectEventFilter;
+
+    "Minted(uint256,uint128,uint256,uint256)"(
+      tokenId?: null,
+      liquidity?: null,
+      amount0?: null,
+      amount1?: null
+    ): MintedEventFilter;
+    Minted(
+      tokenId?: null,
+      liquidity?: null,
+      amount0?: null,
+      amount1?: null
+    ): MintedEventFilter;
+
+    "SwapInput(uint256)"(amountOut?: null): SwapInputEventFilter;
+    SwapInput(amountOut?: null): SwapInputEventFilter;
+  };
 
   estimateGas: {
     collectAllFees(
@@ -459,6 +549,11 @@ export interface SimpleSwap extends BaseContract {
     getPair(
       arg0: PromiseOrValue<string>,
       arg1: PromiseOrValue<string>,
+      overrides?: CallOverrides
+    ): Promise<BigNumber>;
+
+    getPositionOwner(
+      tokenId: PromiseOrValue<BigNumberish>,
       overrides?: CallOverrides
     ): Promise<BigNumber>;
 
@@ -529,6 +624,11 @@ export interface SimpleSwap extends BaseContract {
     getPair(
       arg0: PromiseOrValue<string>,
       arg1: PromiseOrValue<string>,
+      overrides?: CallOverrides
+    ): Promise<PopulatedTransaction>;
+
+    getPositionOwner(
+      tokenId: PromiseOrValue<BigNumberish>,
       overrides?: CallOverrides
     ): Promise<PopulatedTransaction>;
 
