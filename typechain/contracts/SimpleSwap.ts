@@ -174,11 +174,15 @@ export interface SimpleSwapInterface extends utils.Interface {
 
   events: {
     "Collect(uint256,uint256)": EventFragment;
+    "DecreaseLiquidity(uint256,uint256)": EventFragment;
+    "IncreaseLiquidity(uint256,uint256)": EventFragment;
     "Minted(uint256,uint128,uint256,uint256)": EventFragment;
     "SwapInput(uint256)": EventFragment;
   };
 
   getEvent(nameOrSignatureOrTopic: "Collect"): EventFragment;
+  getEvent(nameOrSignatureOrTopic: "DecreaseLiquidity"): EventFragment;
+  getEvent(nameOrSignatureOrTopic: "IncreaseLiquidity"): EventFragment;
   getEvent(nameOrSignatureOrTopic: "Minted"): EventFragment;
   getEvent(nameOrSignatureOrTopic: "SwapInput"): EventFragment;
 }
@@ -193,6 +197,30 @@ export type CollectEvent = TypedEvent<
 >;
 
 export type CollectEventFilter = TypedEventFilter<CollectEvent>;
+
+export interface DecreaseLiquidityEventObject {
+  amount0: BigNumber;
+  amount1: BigNumber;
+}
+export type DecreaseLiquidityEvent = TypedEvent<
+  [BigNumber, BigNumber],
+  DecreaseLiquidityEventObject
+>;
+
+export type DecreaseLiquidityEventFilter =
+  TypedEventFilter<DecreaseLiquidityEvent>;
+
+export interface IncreaseLiquidityEventObject {
+  amount0: BigNumber;
+  amount1: BigNumber;
+}
+export type IncreaseLiquidityEvent = TypedEvent<
+  [BigNumber, BigNumber],
+  IncreaseLiquidityEventObject
+>;
+
+export type IncreaseLiquidityEventFilter =
+  TypedEventFilter<IncreaseLiquidityEvent>;
 
 export interface MintedEventObject {
   tokenId: BigNumber;
@@ -503,6 +531,24 @@ export interface SimpleSwap extends BaseContract {
       amount1?: null
     ): CollectEventFilter;
     Collect(amount0?: null, amount1?: null): CollectEventFilter;
+
+    "DecreaseLiquidity(uint256,uint256)"(
+      amount0?: null,
+      amount1?: null
+    ): DecreaseLiquidityEventFilter;
+    DecreaseLiquidity(
+      amount0?: null,
+      amount1?: null
+    ): DecreaseLiquidityEventFilter;
+
+    "IncreaseLiquidity(uint256,uint256)"(
+      amount0?: null,
+      amount1?: null
+    ): IncreaseLiquidityEventFilter;
+    IncreaseLiquidity(
+      amount0?: null,
+      amount1?: null
+    ): IncreaseLiquidityEventFilter;
 
     "Minted(uint256,uint128,uint256,uint256)"(
       tokenId?: null,

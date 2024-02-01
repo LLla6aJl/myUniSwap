@@ -24,6 +24,8 @@ contract SimpleSwap {
     event Minted(uint256 tokenId, uint128 liquidity, uint256 amount0, uint256 amount1);
     event SwapInput(uint256 amountOut);
     event Collect(uint256 amount0, uint256 amount1);
+    event DecreaseLiquidity(uint256 amount0, uint256 amount1);
+    event IncreaseLiquidity(uint256 amount0, uint256 amount1);
 
     constructor(INonfungiblePositionManager _iNonfungiblePositionManager, ISwapRouter _swapRouter) {
         nonfungiblePositionManager = _iNonfungiblePositionManager;
@@ -181,8 +183,7 @@ contract SimpleSwap {
 
         (amount0, amount1) = nonfungiblePositionManager.decreaseLiquidity(params);
 
-        //send liquidity back to owner
-        _sendToOwner(tokenId, amount0, amount1);
+        emit DecreaseLiquidity(amount0, amount1);
     }
 
     /// @notice Increases liquidity in the current range
@@ -198,12 +199,12 @@ contract SimpleSwap {
         TransferHelper.safeApprove(
             deposits[tokenId].token0,
             address(nonfungiblePositionManager),
-            amount0
+            amountAdd0
         );
         TransferHelper.safeApprove(
             deposits[tokenId].token1,
             address(nonfungiblePositionManager),
-            amount1
+            amountAdd1
         );
 
         //TransferPosition
@@ -211,13 +212,13 @@ contract SimpleSwap {
             deposits[tokenId].token0,
             msg.sender,
             address(this),
-            amount0
+            amountAdd0
         );
         TransferHelper.safeTransferFrom(
             deposits[tokenId].token1,
             msg.sender,
             address(this),
-            amount1
+            amountAdd1
         );
 
         INonfungiblePositionManager.IncreaseLiquidityParams
@@ -231,6 +232,8 @@ contract SimpleSwap {
             });
 
         (, amount0, amount1) = nonfungiblePositionManager.increaseLiquidity(params);
+
+        emit IncreaseLiquidity(amount0, amount1);
     }
 
     function swapExactInput(
@@ -264,7 +267,6 @@ contract SimpleSwap {
     ) external returns (uint256 amountIn) {
         // Transfer the specified `amountInMaximum` to this contract.
         TransferHelper.safeTransferFrom(tokenIn, msg.sender, address(this), amountInMaximum);
-        // Approve the router to spend  `amountInMaximum`.
         TransferHelper.safeApprove(tokenIn, address(swapRouter), amountInMaximum);
 
         // The parameter path is encoded as (tokenOut, fee, tokenIn/tokenOut, fee, tokenIn)
@@ -285,12 +287,7 @@ contract SimpleSwap {
         // If the swap did not require the full amountInMaximum to achieve the exact amountOut then we refund msg.sender and approve the router to spend 0.
         if (amountIn < amountInMaximum) {
             TransferHelper.safeApprove(tokenIn, address(swapRouter), 0);
-            TransferHelper.safeTransferFrom(
-                tokenIn,
-                address(this),
-                msg.sender,
-                amountInMaximum - amountIn
-            );
+            TransferHelper.safeTransfer(tokenIn, msg.sender, amountInMaximum - amountIn);
         }
     }
 }
