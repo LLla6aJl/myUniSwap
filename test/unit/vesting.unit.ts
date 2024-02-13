@@ -45,6 +45,55 @@ describe("VestingContract", function () {
         await Vesting.connect(owner).distributeRights(user.address, INVEST_AMOUNT)
     })
 
+    it("deploy with wrong release percentages", async function () {
+        const VestingFactory = await ethers.getContractFactory("VestingContract")
+        const beginTime = await time.latest()
+        await expect(
+            VestingFactory.connect(owner).deploy(
+                Token.address, // Token address
+                beginTime, // Current timestamp as start time
+                LOCK_PERIOD,
+                [
+                    { monthCount: 1, releasePercentage: 100 },
+                    { monthCount: 2, releasePercentage: 20 },
+                    { monthCount: 3, releasePercentage: 20 },
+                    { monthCount: 4, releasePercentage: 50 },
+                ]
+            )
+        ).to.be.revertedWith("VestingContract: Release percentage must be < 100")
+    })
+
+    it("deploy with wrong total release percentages", async function () {
+        const VestingFactory = await ethers.getContractFactory("VestingContract")
+        const beginTime = await time.latest()
+        await expect(
+            VestingFactory.connect(owner).deploy(
+                Token.address, // Token address
+                beginTime, // Current timestamp as start time
+                LOCK_PERIOD,
+                [
+                    { monthCount: 1, releasePercentage: 10 },
+                    { monthCount: 2, releasePercentage: 20 },
+                    { monthCount: 3, releasePercentage: 20 },
+                    { monthCount: 4, releasePercentage: 40 },
+                ]
+            )
+        ).to.be.revertedWith("VestingContract: Total release percentage must equal 100")
+    })
+
+    it("deploy with empty release percentages", async function () {
+        const VestingFactory = await ethers.getContractFactory("VestingContract")
+        const beginTime = await time.latest()
+        await expect(
+            VestingFactory.connect(owner).deploy(
+                Token.address, // Token address
+                beginTime, // Current timestamp as start time
+                LOCK_PERIOD,
+                []
+            )
+        ).to.be.revertedWith("VestingContract: Release percentages array is empty")
+    })
+
     it("should allow distributing rights after allowed period", async function () {
         await ethers.provider.send("evm_increaseTime", [LOCK_PERIOD])
         await ethers.provider.send("evm_mine", [])

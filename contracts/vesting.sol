@@ -37,7 +37,7 @@ contract VestingContract {
         uint256 totalPercentage;
         for (uint256 i = 0; i < _releases.length; i++) {
             if (_releases[i].releasePercentage >= 100) {
-                revert("VestingContract: Release percentage must be <= 100");
+                revert("VestingContract: Release percentage must be < 100");
             }
             totalPercentage += _releases[i].releasePercentage;
             releases.push(_releases[i]);
