@@ -13,6 +13,10 @@ import * as Contracts from ".";
 declare module "hardhat/types/runtime" {
   interface HardhatEthersHelpers extends HardhatEthersHelpersBase {
     getContractFactory(
+      name: "Ownable",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.Ownable__factory>;
+    getContractFactory(
       name: "IERC20",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.IERC20__factory>;
@@ -72,7 +76,20 @@ declare module "hardhat/types/runtime" {
       name: "SimpleSwap",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.SimpleSwap__factory>;
+    getContractFactory(
+      name: "StakingContract",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.StakingContract__factory>;
+    getContractFactory(
+      name: "VestingContract",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.VestingContract__factory>;
 
+    getContractAt(
+      name: "Ownable",
+      address: string,
+      signer?: ethers.Signer
+    ): Promise<Contracts.Ownable>;
     getContractAt(
       name: "IERC20",
       address: string,
@@ -148,6 +165,16 @@ declare module "hardhat/types/runtime" {
       address: string,
       signer?: ethers.Signer
     ): Promise<Contracts.SimpleSwap>;
+    getContractAt(
+      name: "StakingContract",
+      address: string,
+      signer?: ethers.Signer
+    ): Promise<Contracts.StakingContract>;
+    getContractAt(
+      name: "VestingContract",
+      address: string,
+      signer?: ethers.Signer
+    ): Promise<Contracts.VestingContract>;
 
     // default types
     getContractFactory(

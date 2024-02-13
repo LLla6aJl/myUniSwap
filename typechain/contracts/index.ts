@@ -5,4 +5,8 @@ import type * as interfaces from "./interfaces";
 export type { interfaces };
 import type * as mytokenSol from "./mytoken.sol";
 export type { mytokenSol };
+import type * as stakingSol from "./staking.sol";
+export type { stakingSol };
+import type * as vestingSol from "./vesting.sol";
+export type { vestingSol };
 export type { SimpleSwap } from "./SimpleSwap";
